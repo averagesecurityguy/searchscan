@@ -28,9 +28,9 @@ var config Configuration
 func configuration() {
 	config.nsePath = "/usr/share/nmap/scripts"
 	config.msfauxPath = "/usr/share/metasploit-framework/modules/auxiliary/scanner"
-	config.cachePath = "/Users/daddy/.searchscan"
-	config.username = "averagesecurityguy"
-	config.apitoken = "cba9708e50daebbb5b931797a93060f2d0e169d5"
+	config.cachePath = ""
+	config.username = ""
+	config.apitoken = ""
 	config.apibase = "https://api.github.com/search/code?"
 }
 
