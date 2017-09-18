@@ -1,12 +1,12 @@
 Searchscan
 ==========
-Both Nmap and Metasploit are constantly adding new scanning capabilities and Searchscan can help you find the script you need to scan what you want. Searchscan will search the local machine for installed Nmap NSE and MSF Auxiliary scripts. In addition, it will search GitHub for and Nmap NSE scripts.
+Both Nmap and Metasploit are constantly adding new scanning capabilities. In addition, developers routinely create custom NSE scripts as well. Searchscan can help you find the script you need to scan what you want. Searchscan will search the local machine for installed Nmap NSE and MSF Auxiliary scripts. In addition, it will search GitHub for Nmap NSE scripts.
 
 Usage
 -----
     ./searchscan [options] keyword
+      -c	Build the GitHub cache.
       -d	Show description along with name and path.
-      -g	Download scripts from GitHub. Do not download by default.
       -n	Search for keyword in the name only.
 
 Examples
@@ -56,7 +56,11 @@ Examples
 
 Configuration
 -------------
-    Searchscan reads and parses the Nmap NSE and Metasploit scripts that are installed locally on the machine. Searchscan was designed to run on Kali Linux. If you are running Searchscan on any other OS you will need to ensure Nmap and Metasploit are installed and you will need to modify the nsePath and msfauxPath variables in the main.go file.
+    Searchscan reads and parses the Nmap NSE and Metasploit scripts that are installed locally on the machine. Searchscan was designed to run on Kali Linux. If you are running Searchscan on any other OS you will need to ensure Nmap and Metasploit are installed and you will need to modify the `config.nsePath` and `config.msfauxPath` variables in the main.go file.
+
+    If you want to search GitHub, you will need to build the local cache using `./searchscan -c`. Before you can build the cache you will need to modify the `config.username`, `config.apitoken`, and `config.cachePath` variables in the main.go file. Once the cache is built you can update it periodically by running `./searchscan -c`.
+
+    If you need to create an access token, follow the directions at https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/. The access token only needs the default permissions.
 
 Building
 --------
@@ -67,15 +71,6 @@ Building Searchscan is easy and follows a similar pattern to most Golang scripts
     go build
     ./searchscan
 
-GitHub
-------
-A GitHub username and access token are required to search the GitHub API. You can setup a new access token using the directions at https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/. The access token only needs the default permissions.
-
-Keep in mind that the Github API is rate limited to 30 requests per minute. By default, searchscan will make 10 requests on each run. If you exceed the rate limit, the GitHub search will fail. You will need to wait at least 1 minute before trying again. By default, Searchscan will only search for NSE scripts in the first 1000 GitHub results. You can modify the `config.pagecount` value to increase or decrease the searched results (There are 100 results per page). Remember, that if the `config.pagecount` value is too high, subsequent runs will not search GitHub until the rate limit is lifted.
-
-By default Searchscan will only download the name and URL for NSE scripts on GitHub to get the description as well, use the `-g` flag. This will be slow.
-
 To Do
 -----
-Add local caching for the GitHub results.
 Add support for MSF Aux modules on GitHub, if possible.
