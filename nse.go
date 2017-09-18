@@ -7,9 +7,9 @@ Parse Nmap NSE scripts.
 import (
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"strings"
-	"path/filepath"
 )
 
 var re_desc = regexp.MustCompile(`(?m)^description = "(.*)"`)
