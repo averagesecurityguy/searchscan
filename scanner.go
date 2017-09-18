@@ -66,10 +66,10 @@ func loadScanners(stype string) []scanner {
 		fmt.Println("Searching local MSF Auxiliary scripts.")
 		files = findFiles(config.msfauxPath, ".rb")
 		loader = loadMsfAux
-	case stype == "github":
+	case stype == "ghnse":
 		fmt.Println("Searching Github NSE scripts.")
-		files = githubFiles()
-		loader = loadGithubNse
+		files = findFiles(config.cachePath, ".nse")
+		loader = loadNSE
 	default:
 		return scanners
 	}
@@ -93,7 +93,7 @@ func findScanners(keyword string) []scanner {
 
 	scanners = append(scanners, loadScanners("nse")...)
 	scanners = append(scanners, loadScanners("msfaux")...)
-	scanners = append(scanners, loadScanners("github")...)
+	scanners = append(scanners, loadScanners("ghnse")...)
 
 	var found []scanner
 	for _, s := range scanners {

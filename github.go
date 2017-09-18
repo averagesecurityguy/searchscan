@@ -8,9 +8,14 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strconv"
+	"path/filepath"
+	"regexp"
+	"os"
 	"strings"
+	"time"
 )
+
+var re_next = regexp.MustCompile(`^<(https://api.github.com.*)>; rel="next"`)
 
 type result struct {
 	Items []item `json:"items"`
@@ -22,9 +27,10 @@ type item struct {
 	Url  string `json:"html_url"`
 }
 
-func request(query string) ([]byte, error) {
+func request(query string) ([]byte, string, error) {
 	var body []byte
 
+	next := ""
 	url := config.apibase + query
 	client := &http.Client{}
 
@@ -34,58 +40,127 @@ func request(query string) ([]byte, error) {
 
 	switch {
 	case err != nil:
-		return body, err
+		return body, next, err
 	case resp.StatusCode == 404:
-		return body, errors.New("Endpoint not found or invalid authentication.")
+		return body, next, errors.New("Endpoint not found or invalid authentication.")
 	default:
 	}
 
 	defer resp.Body.Close()
 
+	// Get the next link for our search
+	links := strings.Split(resp.Header.Get("link"), ", ")
+	for _, l := range(links) {
+		m := re_next.FindStringSubmatch(l)
+		if m != nil {
+			next = m[1]
+			break
+		}
+	}
+
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return body, errors.New("Could not read response.")
+		return body, next, errors.New("Could not read response.")
 	}
 
-	return body, nil
+	return body, next, nil
 }
 
-func githubFiles() []string {
-	var result result
-	var files []string
-	var nmaps []string
+func download(url string) {
+	script := path.Base(url)
+	filename := filepath.Join(config.cachePath, script)
 
-	if config.username == "" || config.apitoken == "" {
-		fmt.Println("Invalid Github credentials.")
-		return files
+	fmt.Printf("Downloading %s\n", script)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Printf("Could not access %s.\n", url)
 	}
 
-	urls := make(map[string]string)
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Could not read HTTP response.")
+	}
+
+	f, err := os.Create(filename)
+	if err != nil {
+		fmt.Printf("Could not create file %s\n", filename)
+	}
+
+	_, err = f.WriteString(fmt.Sprintf("\n-- @GitHub %s\n", url))
+	if err != nil {
+		fmt.Printf("Could not write file.")
+	}
+
+	_, err = f.Write(body)
+	if err != nil {
+		fmt.Printf("Could not write file.")
+	}
+}
+
+// Build a cache of NSE scripts from GitHub
+func buildGithubCache(stype string) error {
+	var query string
+	var result result
+	var items []item
+	var nmaps []string
+
+	fmt.Printf("Building GitHub cache for %s scripts.\n", stype)
+
+	if config.username == "" || config.apitoken == "" {
+		return errors.New("Invalid Github credentials. Cannot build GitHub cache.")
+	}
+
+	if _, err := os.Stat(config.cachePath); os.IsNotExist(err) {
+		return errors.New(fmt.Sprintf("GitHub cache path (%s) does not exist.\n", config.cachePath))
+	}
+
+	switch {
+	case stype == "nse":
+		query = "nse in:path language:lua extension:nse"
+	case stype == "msfaux":
+		query = ""
+	}
+
 	params := url.Values{}
-
-	params.Set("q", "nse in:path language:lua extension:nse")
+	params.Set("q", query)
 	params.Set("per_page", "100")
+	params.Set("page", "1")
 
-	for i := 1; i <= config.pagecount; i++ {
-		params.Set("page", strconv.Itoa(i))
+	resp, next, err := request(params.Encode())
+	if err != nil {
+		return err
+	}
+	json.Unmarshal(resp, &result)
+	items = append(items, result.Items...)
 
-		resp, err := request(params.Encode())
-		if err != nil {
-			fmt.Println(err)
+	for {
+		// No more results. Quit
+		if next == "" {
 			break
 		}
 
+		resp, next, err = request(next[35:])
+		if err != nil {
+			return err
+		}
 		json.Unmarshal(resp, &result)
+		items = append(items, result.Items...)
 
-		// Flag items from the Nmap repo so we can remove any files that are
-		// duplicates.
-		for _, item := range result.Items {
-			switch {
-			case strings.HasPrefix(item.Url, "https://github.com/nmap/"):
-				nmaps = append(nmaps, item.Sha)
-			default:
-				urls[item.Sha] = item.Url
-			}
+		time.Sleep(2500 * time.Millisecond)
+	}
+
+	// Flag items from the Nmap repo so we can remove any files that are
+	// duplicates.
+	urls := make(map[string] string)
+	for _, item := range items {
+		switch {
+		case strings.HasPrefix(item.Url, "https://github.com/nmap/"):
+			nmaps = append(nmaps, item.Sha)
+		default:
+			urls[item.Sha] = item.Url
 		}
 	}
 
@@ -94,45 +169,13 @@ func githubFiles() []string {
 		delete(urls, sha)
 	}
 
-	for _, item := range urls {
-		files = append(files, item)
+	fmt.Printf("Downloading %d %s scripts from Github.\n", len(urls), stype)
+	for _, url := range urls {
+		// Need the raw URL.
+		url = strings.Replace(url, "github.com", "raw.githubusercontent.com", 1)
+		url = strings.Replace(url, "blob/", "", 1)
+		download(url)
 	}
 
-	return files
-}
-
-func getPage(url string) ([]byte, error) {
-	var body []byte
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return body, err
-	}
-
-	defer resp.Body.Close()
-
-	body, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return body, errors.New("Could not read response.")
-	}
-
-	return body, nil
-}
-
-func loadGithubNse(url string) (scanner, error) {
-	var github scanner
-
-	github.SetName(path.Base(url))
-	github.SetPath(url)
-
-	if config.githubDetails == true {
-		data, err := getPage(url)
-		if err != nil {
-			return github, err
-		}
-
-		github.SetDescription(parseNSE(data))
-	}
-
-	return github, nil
+	return nil
 }

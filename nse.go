@@ -16,6 +16,8 @@ var re_desc = regexp.MustCompile(`(?m)^description = "(.*)"`)
 var re_desc_m = regexp.MustCompile(`(?sm)^description = \[\[\n(.*?)\]\]`)
 var re_emph = regexp.MustCompile(`\*([a-zA-Z ]+)\*`)
 var re_list = regexp.MustCompile(` *[*-] +`)
+var re_url = regexp.MustCompile(`(?m)-- @GitHub (.*)`)
+
 
 func clean(data string) string {
 	data = re_emph.ReplaceAllString(data, "$1")
@@ -46,8 +48,9 @@ func format(data string) string {
 	return strings.Join(paragraphs, "\n\n")
 }
 
-func parseNSE(data []byte) string {
+func parseNSE(data []byte) (string, string) {
 	var description string
+	var url string
 
 	m := re_desc.FindSubmatch(data)
 	if m != nil {
@@ -59,7 +62,12 @@ func parseNSE(data []byte) string {
 		}
 	}
 
-	return description
+	m = re_url.FindSubmatch(data)
+	if m != nil {
+		url = string(m[1])
+	}
+
+	return description, url
 }
 
 func loadNSE(filename string) (scanner, error) {
@@ -72,7 +80,15 @@ func loadNSE(filename string) (scanner, error) {
 
 	nse.SetName(filepath.Base(filename))
 	nse.SetPath(filename)
-	nse.SetDescription(parseNSE(data))
+
+	description, url := parseNSE(data)
+
+	// If the NSE is in our cache then use the GitHub URL for the path.
+	if url != "" {
+		nse.SetPath(url)
+	}
+
+	nse.SetDescription(description)
 
 	return nse, nil
 }

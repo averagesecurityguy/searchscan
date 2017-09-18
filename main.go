@@ -14,13 +14,13 @@ import (
 type Configuration struct {
 	nsePath       string
 	msfauxPath    string
+	cachePath     string
 	username      string
 	apitoken      string
 	apibase       string
-	pagecount     int
 	nameOnly      bool
 	showDesc      bool
-	githubDetails bool
+	githubCache   bool
 }
 
 var config Configuration
@@ -28,10 +28,10 @@ var config Configuration
 func configuration() {
 	config.nsePath = "/usr/share/nmap/scripts"
 	config.msfauxPath = "/usr/share/metasploit-framework/modules/auxiliary/scanner"
-	config.username = ""
-	config.apitoken = ""
+	config.cachePath = "/Users/daddy/.searchscan"
+	config.username = "averagesecurityguy"
+	config.apitoken = "cba9708e50daebbb5b931797a93060f2d0e169d5"
 	config.apibase = "https://api.github.com/search/code?"
-	config.pagecount = 10
 }
 
 func usage() {
@@ -43,16 +43,25 @@ func main() {
 	flag.Usage = usage
 	flag.BoolVar(&config.showDesc, "d", false, "Show description along with name and path.")
 	flag.BoolVar(&config.nameOnly, "n", false, "Search for keyword in the name only.")
-	flag.BoolVar(&config.githubDetails, "g", false, "Download scripts from GitHub. Do not download by default.")
+	flag.BoolVar(&config.githubCache, "c", false, "Build the GitHub cache.")
 
 	flag.Parse()
+	configuration()
+
+	if config.githubCache == true {
+		err := buildGithubCache("nse")
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(0)
+		}
+
+		os.Exit(0)
+	}
 
 	if len(flag.Args()) != 1 {
 		flag.Usage()
 		os.Exit(0)
 	}
-
-	configuration()
 
 	for _, s := range findScanners(flag.Arg(0)) {
 		if config.showDesc == true {
