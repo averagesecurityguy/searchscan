@@ -1,18 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"fmt"
 	"strings"
 )
 
-// Recursively search a directory files with the specified extension. Modified
+// Recursively search a directory for files with the specified extension. Modified
 // from https://gist.github.com/moongears/f1f2eec925997502a755
 func findFiles(root, ext string) []string {
 	var files []string
 
-	err := filepath.Walk(root, func (path string, file os.FileInfo, err error) error {
+	err := filepath.Walk(root, func(path string, file os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -26,15 +26,20 @@ func findFiles(root, ext string) []string {
 		}
 
 		return nil
-		})
+	})
 
 	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Println("Path does not exist.")
+			return files
+		}
+
 		fmt.Println(err)
+		return files
 	}
 
 	return files
 }
-
 
 // Wrap the given text at 80 characters. Modified from
 // https://www.rosettacode.org/wiki/Word_wrap#Go
