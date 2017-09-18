@@ -74,3 +74,8 @@ A GitHub username and access token are required to search the GitHub API. You ca
 Keep in mind that the Github API is rate limited to 30 requests per minute. By default, searchscan will make 10 requests on each run. If you exceed the rate limit, the GitHub search will fail. You will need to wait at least 1 minute before trying again. By default, Searchscan will only search for NSE scripts in the first 1000 GitHub results. You can modify the `config.pagecount` value to increase or decrease the searched results (There are 100 results per page). Remember, that if the `config.pagecount` value is too high, subsequent runs will not search GitHub until the rate limit is lifted.
 
 By default Searchscan will only download the name and URL for NSE scripts on GitHub to get the description as well, use the `-g` flag. This will be slow.
+
+To Do
+-----
+Add local caching for the GitHub results.
+Add support for MSF Aux modules on GitHub, if possible.
