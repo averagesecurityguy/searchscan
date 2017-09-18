@@ -1,31 +1,38 @@
 /*
 Copyright (c) 2017, AverageSecurityGuy
 # All rights reserved.
-
 */
 
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
-	"flag"
 )
 
 type Configuration struct {
-	nsePath    string
-	msfauxPath string
-	nameOnly   bool
-	showDesc   bool
+	nsePath       string
+	msfauxPath    string
+	username      string
+	apitoken      string
+	apibase       string
+	pagecount     int
+	nameOnly      bool
+	showDesc      bool
+	githubDetails bool
 }
 
 var config Configuration
 
-func configuration () {
+func configuration() {
 	config.nsePath = "/usr/share/nmap/scripts"
 	config.msfauxPath = "/usr/share/metasploit-framework/modules/auxiliary/scanner"
+	config.username = ""
+	config.apitoken = ""
+	config.apibase = "https://api.github.com/search/code?"
+	config.pagecount = 10
 }
-
 
 func usage() {
 	fmt.Println("Usage: searchscan [options] keyword")
@@ -33,15 +40,17 @@ func usage() {
 }
 
 func main() {
-    flag.Usage = usage
-    flag.BoolVar(&config.showDesc, "d", false, "Show description along with name and path.")
-    flag.BoolVar(&config.nameOnly, "n", false, "Search for keyword in the name only.")
-    flag.Parse()
+	flag.Usage = usage
+	flag.BoolVar(&config.showDesc, "d", false, "Show description along with name and path.")
+	flag.BoolVar(&config.nameOnly, "n", false, "Search for keyword in the name only.")
+	flag.BoolVar(&config.githubDetails, "g", false, "Download scripts from GitHub. Do not download by default.")
 
-    if len(flag.Args()) != 1 {
-    	flag.Usage()
-    	os.Exit(0)
-    }
+	flag.Parse()
+
+	if len(flag.Args()) != 1 {
+		flag.Usage()
+		os.Exit(0)
+	}
 
 	configuration()
 
